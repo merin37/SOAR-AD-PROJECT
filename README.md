@@ -87,7 +87,7 @@ This finding directly shaped the detection rule: genuine external `mstsc` RDP co
 - Filters on `authenticationPackageName: NTLM` and `logonType: 3`
 - Excludes RFC1918 private ranges using flattened `OS_Regex` alternatives (grouped alternation patterns are unsupported by Wazuh's regex engine)
 
-![Custom Rule XML](./screenshots/ss11 (wazuh unauthorized login rule).png)
+![Custom Rule XML](./screenshots/ss11_wazuh_unauthorized_login_rule.png)
 *`local_rules.xml` — rule 100100 chained on parent rule 92657, filtering on Logon Type 3 + NTLM, excluding private IP ranges, and mapped to MITRE ATT&CK T1021.001 / T1078.*
 
 ![Alert Fired](./screenshots/ss12_fired_event.png)
