@@ -4,42 +4,6 @@ An end-to-end Security Operations Center lab simulating a realistic enterprise d
 
 This lab demonstrates the full alert lifecycle: **detect → enrich → triage → respond**.
 
-```
-[Windows AD Domain: mydir.local]
-   Domain Controller + Test Machine
-              |
-              | Windows Security Event Logs
-              v
-      [Wazuh 4.9 SIEM] (Ubuntu 22.04, Vultr)
-              |
-              | Custom detection rule 100100 --> wazuh-integratord
-              v
-        [Tines SOAR] (Community Edition)
-              |
-   +----------+-----------+
-   |                       |
-[AbuseIPDB]           [VirusTotal]
-   |                       |
-   +----------+-----------+
-              |
-     [AI Risk Verdict Action]
-              |
-              v
-        [Slack: #soc-alerts]
-      Block Kit interactive alert
-              |
-      Analyst clicks "Take Alert"
-              |
-              v
-     [Tines callback webhook]
-              |
-              v
-   Slack message updated:
-   "✅ CLAIMED by @analyst"
-```
-
----
-
 ## Table of Contents
 
 - [Environment Setup](#environment-setup)
@@ -121,7 +85,7 @@ This finding directly shaped the detection rule: genuine external `mstsc` RDP co
 - Filters on `authenticationPackageName: NTLM` and `logonType: 3`
 - Excludes RFC1918 private ranges using flattened `OS_Regex` alternatives (grouped alternation patterns are unsupported by Wazuh's regex engine)
 
-![Custom Rule XML](./screenshots/ss11_wazuh_unauthorized_login_rule.png)
+![Custom Rule XML](./screenshots/ss11 (wazuh unauthorized login rule).png)
 *`local_rules.xml` — rule 100100 chained on parent rule 92657, filtering on Logon Type 3 + NTLM, excluding private IP ranges, and mapped to MITRE ATT&CK T1021.001 / T1078.*
 
 ![Alert Fired](./screenshots/ss12_fired_event.png)
