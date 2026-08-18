@@ -30,7 +30,7 @@ Three Vultr VMs form the lab backbone: a Domain Controller, a Test Machine (doma
 
 Firewall groups are scoped per VM role rather than shared, restricting each host to only the ports/sources it actually needs:
 
-![Firewall Group - Domain Controller](./screenshots/ss2_fwdc.png)
+![Firewall Group - Domain Controller](screenshots/ss2_fw-dc.png)
 *`fw-dc`: SSH (22) and RDP (3389) scoped to the admin subnet; Wazuh agent ports 1514/1515 scoped to the Wazuh subnet.*
 
 ![Firewall Group - Test Machine](./screenshots/ss2_2fwtest.png)
