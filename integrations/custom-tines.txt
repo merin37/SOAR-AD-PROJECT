@@ -1,0 +1,15 @@
+#!/bin/sh
+
+# Wazuh -> Tines webhook integration
+# Argument 1: alert JSON file path
+# Argument 2: API key (unused - we use URL-secret)
+# Argument 3: webhook URL
+
+ALERT_FILE=$1
+WEBHOOK_URL=$3
+
+# POST the raw alert JSON to Tines
+curl -s -o /dev/null -X POST \
+  -H "Content-Type: application/json" \
+  -d @"${ALERT_FILE}" \
+  "${WEBHOOK_URL}"
