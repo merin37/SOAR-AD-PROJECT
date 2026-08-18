@@ -1,0 +1,553 @@
+{
+  "schema_version": 30,
+  "standard_lib_version": 94,
+  "action_runtime_version": 86,
+  "name": "Wazuh Unauthorized RDP Response",
+  "description": "Detects successful RDP-style network logons from external IPs,  enriches with threat intel, and routes to SOC analyst via Slack with claim-and-triage workflow.",
+  "guid": "810ccdbf57b67a5b7ede98fe6df88f8c",
+  "slug": "wazuh_unauthorized_rdp_response",
+  "agents": [
+    {
+      "type": "Agents::WebhookAgent",
+      "name": "Wazuh alert intake",
+      "disabled": false,
+      "description": "Receives alerts from Wazuh custom rule via wazuh-manager integration",
+      "guid": "f96f104ea3803eb602eb5b3dc3de8fe7",
+      "origin_story_identifier": "cloud:2f8da1140e77e7333f8313435a925123:810ccdbf57b67a5b7ede98fe6df88f8c",
+      "options": {
+        "path": "3acdde75de55dd3680d44bc150ae53c8",
+        "secret": "55ce390a441d8d5a6181e355fd484b80",
+        "verbs": "POST"
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": false,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null
+    },
+    {
+      "type": "Agents::HTTPRequestAgent",
+      "name": "abuseipdb_lookup",
+      "disabled": false,
+      "description": "Query AbuseIPDB for reputation score on the source IP from the Wazuh alert",
+      "guid": "c6c56a19963b6a56b9f27145d4f16e3e",
+      "origin_story_identifier": "cloud:2f8da1140e77e7333f8313435a925123:810ccdbf57b67a5b7ede98fe6df88f8c",
+      "options": {
+        "url": "https://api.abuseipdb.com/api/v2/check?ipAddress= <<wazuh_alert_intake.body.data.win.eventdata.ipAddress>>&maxAgeInDays=90&verbose",
+        "content_type": "application_json",
+        "method": "get",
+        "payload": {
+          "key": "value",
+          "array_example": [
+            "foo",
+            "bar"
+          ],
+          "object_example": {
+            "key": "value"
+          }
+        },
+        "headers": {
+          "Key": "<<CREDENTIAL.abuseipdb>>",
+          "Accept": "application/json"
+        }
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": false,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null,
+      "schedule": null
+    },
+    {
+      "type": "Agents::HTTPRequestAgent",
+      "name": "virustotal_lookup",
+      "disabled": false,
+      "description": "Query VirusTotal v3 API for IP reputation across ~90 vendors",
+      "guid": "dba96d663019142f7d6799cfc2500977",
+      "origin_story_identifier": "cloud:2f8da1140e77e7333f8313435a925123:810ccdbf57b67a5b7ede98fe6df88f8c",
+      "options": {
+        "url": "https://www.virustotal.com/api/v3/ip_addresses/<<wazuh_alert_intake.body.data.win.eventdata.ipAddress>>",
+        "content_type": "application_json",
+        "method": "get",
+        "payload": {
+          "key": "value",
+          "array_example": [
+            "foo",
+            "bar"
+          ],
+          "object_example": {
+            "key": "value"
+          }
+        },
+        "headers": {
+          "x-apikey": "<<CREDENTIAL.virustotal>>",
+          "Accept": "application/json"
+        },
+        "emit_failure_event": true
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": false,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null,
+      "schedule": null
+    },
+    {
+      "type": "Agents::EventTransformationAgent",
+      "name": "risk_analysis",
+      "disabled": false,
+      "description": "Fetches data for analysis",
+      "guid": "39ca6ed523a2af2ebf774dbc0baac67b",
+      "origin_story_identifier": "cloud:2f8da1140e77e7333f8313435a925123:810ccdbf57b67a5b7ede98fe6df88f8c",
+      "options": {
+        "mode": "message_only",
+        "loop": false,
+        "payload": {
+          "src_ip": "<<wazuh_alert_intake.body.data.win.eventdata.ipAddress>>",
+          "target_user": "<<wazuh_alert_intake.body.data.win.eventdata.targetUserName>>",
+          "attacker_workstation": "<<wazuh_alert_intake.body.data.win.eventdata.workstationName>>",
+          "abuse_score": "<<abuseipdb_lookup.body.data.abuseConfidenceScore>>",
+          "vt_malicious": "<<virustotal_lookup.body.data.attributes.last_analysis_stats.malicious>>",
+          "country": "<<abuseipdb_lookup.body.data.countryName>>",
+          "isp": "<<abuseipdb_lookup.body.data.isp>>",
+          "is_tor": "<<abuseipdb_lookup.body.data.isTor>>",
+          "hostname": "<<abuseipdb_lookup.body.data.hostnames[0]>>",
+          "abuse_link": "https://www.abuseipdb.com/check/<<wazuh_alert_intake.body.data.win.eventdata.ipAddress>>",
+          "vt_link": "https://www.virustotal.com/gui/ip-address/<<wazuh_alert_intake.body.data.win.eventdata.ipAddress>>"
+        }
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": false,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null,
+      "schedule": null
+    },
+    {
+      "type": "Agents::EventTransformationAgent",
+      "name": "Risk_verdict",
+      "disabled": false,
+      "description": null,
+      "guid": "3598e96401b7ab9fbfeb8a5e9a6fe369",
+      "origin_story_identifier": "cloud:2f8da1140e77e7333f8313435a925123:810ccdbf57b67a5b7ede98fe6df88f8c",
+      "options": {
+        "mode": "automatic",
+        "input": "=risk_analysis",
+        "guidance": "You are a Tier 2 SOC analyst reviewing a Wazuh detection alert for a successful unauthorized RDP-style network logon. You will produce a structured triage decision AND a short analyst briefing in a single output.\n\nSCORING RULES:\n- Start with the AbuseIPDB confidence score (abuse_score, 0-100).\n- Add 10 points per VirusTotal vendor flagging the IP as malicious (vt_malicious).\n- Cap the numeric score at 100. Call the result final_score.\n- If is_tor is true, the verdict is HIGH regardless of final_score.\n\nVERDICT SELECTION:\n- final_score >= 75 OR is_tor is true → verdict = HIGH\n- final_score 40-74 → verdict = MEDIUM\n- final_score 1-39 → verdict = LOW\n- final_score = 0 → verdict = CLEAN\n\nOUTPUT FIELDS TO INCLUDE (in addition to the raw fields you already emit):\n- final_score: the computed integer, 0-100\n- verdict: one of HIGH, MEDIUM, LOW, CLEAN\n- summary: exactly 2 sentences describing what happened. MUST reference specific values from the input: target_user, src_ip, country, isp. Do NOT use vague language.\n- recommended_action: 1 sentence appropriate to the verdict.\n    * HIGH: immediate escalation / disable account.\n    * MEDIUM: investigate now, contact user to verify.\n    * LOW: verify with user; likely benign but document.\n    * CLEAN: document and close.\n\nSTRICT RULES:\n- Use ONLY the data provided in the input. Do NOT invent facts.\n- Base your analysis on: target_user, src_ip, country, isp, is_tor, abuse_score, vt_malicious, attacker_workstation, hostname.\n- The summary must name-drop specific values, not paraphrase.\n- Do not contradict the mathematical verdict in the summary or recommendation.",
+        "language": "python_3_13",
+        "script": "from typing import Any\n\n\ndef _to_bool(value: Any) -> bool:\n    if isinstance(value, bool):\n        return value\n    if isinstance(value, str):\n        return value.strip().lower() in (\"true\", \"1\", \"yes\")\n    if isinstance(value, (int, float)):\n        return value != 0\n    return False\n\n\ndef _to_int(value: Any) -> int:\n    try:\n        if value is None or value == \"\":\n            return 0\n        return int(float(value))\n    except (ValueError, TypeError):\n        return 0\n\n\ndef main(input: dict) -> dict:\n    src_ip = input.get(\"src_ip\") or \"unknown IP\"\n    target_user = input.get(\"target_user\") or \"an unspecified user\"\n    attacker_workstation = input.get(\"attacker_workstation\") or \"an unspecified workstation\"\n    country = input.get(\"country\") or \"an unspecified country\"\n    isp = input.get(\"isp\") or \"an unspecified ISP\"\n    hostname = input.get(\"hostname\") or \"an unspecified hostname\"\n    abuse_link = input.get(\"abuse_link\") or \"\"\n    vt_link = input.get(\"vt_link\") or \"\"\n\n    abuse_score = _to_int(input.get(\"abuse_score\"))\n    vt_malicious = _to_int(input.get(\"vt_malicious\"))\n    is_tor = _to_bool(input.get(\"is_tor\"))\n\n    final_score = abuse_score + (vt_malicious * 10)\n    final_score = max(0, min(final_score, 100))\n\n    if is_tor or final_score >= 75:\n        verdict = \"HIGH\"\n    elif 40 <= final_score <= 74:\n        verdict = \"MEDIUM\"\n    elif 1 <= final_score <= 39:\n        verdict = \"LOW\"\n    else:\n        verdict = \"CLEAN\"\n\n    summary = (\n        f\"A successful RDP-style logon was observed for target user {target_user} from source IP {src_ip} \"\n        f\"(hostname {hostname}), originating from {country} via ISP {isp}, with the connection reaching attacker workstation {attacker_workstation}. \"\n        f\"This IP has an AbuseIPDB confidence score of {abuse_score}, was flagged as malicious by {vt_malicious} VirusTotal vendor(s), \"\n        f\"and {'is associated with a Tor exit node' if is_tor else 'is not associated with Tor'}, yielding a final risk score of {final_score} and a {verdict} verdict.\"\n    )\n\n    if verdict == \"HIGH\":\n        recommended_action = (\n            f\"Immediately escalate this incident and disable the account for {target_user} pending further investigation.\"\n        )\n    elif verdict == \"MEDIUM\":\n        recommended_action = (\n            f\"Investigate this logon now and contact {target_user} to verify whether they initiated the connection from {src_ip}.\"\n        )\n    elif verdict == \"LOW\":\n        recommended_action = (\n            f\"Verify with {target_user} that the login from {src_ip} was legitimate; this is likely benign but should be documented.\"\n        )\n    else:\n        recommended_action = (\n            f\"Document this event as clean for {target_user} from {src_ip} and close the alert.\"\n        )\n\n    return {\n        \"src_ip\": src_ip,\n        \"target_user\": target_user,\n        \"attacker_workstation\": attacker_workstation,\n        \"abuse_score\": abuse_score,\n        \"vt_malicious\": vt_malicious,\n        \"country\": country,\n        \"isp\": isp,\n        \"is_tor\": is_tor,\n        \"hostname\": hostname,\n        \"abuse_link\": abuse_link,\n        \"vt_link\": vt_link,\n        \"final_score\": final_score,\n        \"verdict\": verdict,\n        \"summary\": summary,\n        \"recommended_action\": recommended_action,\n    }"
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": false,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null,
+      "schedule": null
+    },
+    {
+      "type": "Agents::HTTPRequestAgent",
+      "name": "post_slack_alert",
+      "disabled": false,
+      "description": "Posts enriched Wazuh alert to #soc-alerts with a Take Alert button that opens Wazuh and records the claim",
+      "guid": "dd5653679102ebd180162f6455208008",
+      "origin_story_identifier": "cloud:2f8da1140e77e7333f8313435a925123:810ccdbf57b67a5b7ede98fe6df88f8c",
+      "options": {
+        "url": "https://slack.com/api/chat.postMessage",
+        "content_type": "application_json",
+        "method": "post",
+        "payload": {
+          "channel": "C0BGED8MUTC",
+          "text": "Wazuh alert: possible unauthorized RDP logon",
+          "blocks": [
+            {
+              "type": "header",
+              "text": {
+                "type": "plain_text",
+                "text": "🚨 Wazuh Alert — Possible Unauthorized RDP Logon"
+              }
+            },
+            {
+              "type": "section",
+              "text": {
+                "type": "mrkdwn",
+                "text": "*🤖 AI Triage Summary*\n <<risk_verdict.output.summary>>"
+              }
+            },
+            {
+              "type": "section",
+              "text": {
+                "type": "mrkdwn",
+                "text": "*✅ Recommended Action*\n<<risk_verdict.output.recommended_action>>"
+              }
+            },
+            {
+              "type": "divider"
+            },
+            {
+              "type": "section",
+              "fields": [
+                {
+                  "type": "mrkdwn",
+                  "text": "*Verdict:*\n<<risk_verdict.output.verdict>>` (score - <<risk_verdict.output.final_score>>/100)"
+                },
+                {
+                  "type": "mrkdwn",
+                  "text": "*Target user:*\n<<risk_verdict.output.target_user>>"
+                },
+                {
+                  "type": "mrkdwn",
+                  "text": "*Source IP:*\n<<risk_verdict.output.src_ip>>"
+                },
+                {
+                  "type": "mrkdwn",
+                  "text": "*Attacker workstation:*\n<<risk_verdict.output.attacker_workstation>>"
+                }
+              ]
+            },
+            {
+              "type": "section",
+              "fields": [
+                {
+                  "type": "mrkdwn",
+                  "text": "*Country:*\n<<risk_verdict.output.country>>"
+                },
+                {
+                  "type": "mrkdwn",
+                  "text": "*ISP:*\n<<risk_verdict.output.isp>>"
+                },
+                {
+                  "type": "mrkdwn",
+                  "text": "*VirusTotal flags:*\n<<risk_verdict.output.vt_malicious>> vendors"
+                },
+                {
+                  "type": "mrkdwn",
+                  "text": "*AbuseIPDB score:*\n<<risk_verdict.output.abuse_score>>/100"
+                }
+              ]
+            },
+            {
+              "type": "context",
+              "elements": [
+                {
+                  "type": "mrkdwn",
+                  "text": "MITRE ATT&CK: `T1021.001` Remote Desktop Protocol · `T1078` Valid Accounts"
+                }
+              ]
+            },
+            {
+              "type": "actions",
+              "elements": [
+                {
+                  "type": "button",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "🎯 Take Alert",
+                    "emoji": true
+                  },
+                  "style": "primary",
+                  "url": "https://216.128.185.28/app/data-explorer/discover#?_a=(discover:(columns:!(_source),isDirty:!f,sort:!()),metadata:(indexPattern:'wazuh-alerts-*',view:discover))&_g=(filters:!(),refreshInterval:(pause:!t,value:0),time:(from:now-1d,to:now))&_q=(filters:!(),query:(language:kuery,query:'rule.id:%22100100%22'))",
+                  "value": "<<wazuh_alert_intake.body.id>>",
+                  "action_id": "take_alert"
+                },
+                {
+                  "type": "button",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "🔍 AbuseIPDB",
+                    "emoji": true
+                  },
+                  "url": "<<risk_verdict.output.abuse_link>>",
+                  "action_id": "open_abuseipdb"
+                },
+                {
+                  "type": "button",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "🧪 VirusTotal",
+                    "emoji": true
+                  },
+                  "url": "<<risk_verdict.output.vt_link>>",
+                  "action_id": "open_virustotal"
+                }
+              ]
+            }
+          ]
+        },
+        "headers": {
+          "Authorization": "Bearer <<CREDENTIAL.slack>>",
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": false,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null,
+      "schedule": null
+    },
+    {
+      "type": "Agents::WebhookAgent",
+      "name": "slack_button_callback",
+      "disabled": false,
+      "description": "Receives Slack button click interactions (Take Alert). Records the claiming analyst and updates the source message.",
+      "guid": "a9d5dc20a7127aece4da9b72ac668405",
+      "origin_story_identifier": "cloud:2f8da1140e77e7333f8313435a925123:810ccdbf57b67a5b7ede98fe6df88f8c",
+      "options": {
+        "path": "f9511c42f27fa9933c174424709d54f8",
+        "secret": "0a38ead58acd542d52426f8f50aece38",
+        "verbs": "POST"
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": false,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null
+    },
+    {
+      "type": "Agents::EventTransformationAgent",
+      "name": "parse_slack_payload",
+      "disabled": false,
+      "description": "Parses the JSON string in body.payload from Slack's form-encoded button interaction into structured fields",
+      "guid": "7a498d0e8f0ebd93aaf71ecd2ec56f52",
+      "origin_story_identifier": "cloud:2f8da1140e77e7333f8313435a925123:810ccdbf57b67a5b7ede98fe6df88f8c",
+      "options": {
+        "mode": "automatic",
+        "input": "=slack_button_callback.body.payload",
+        "guidance": "Transform the input into JSON",
+        "language": "python_3_13",
+        "script": "import json\nfrom typing import Any\n\n\ndef main(input: Any) -> Any:\n    if isinstance(input, (str, bytes, bytearray)):\n        try:\n            return json.loads(input)\n        except (json.JSONDecodeError, TypeError):\n            return input\n    return input"
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": false,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null,
+      "schedule": null
+    },
+    {
+      "type": "Agents::HTTPRequestAgent",
+      "name": "update_slack_message",
+      "disabled": false,
+      "description": "Replaces the original alert message with a CLAIMED confirmation showing the analyst who took the alert",
+      "guid": "121063fb9a09427ec55ab2d05d28d208",
+      "origin_story_identifier": "cloud:2f8da1140e77e7333f8313435a925123:810ccdbf57b67a5b7ede98fe6df88f8c",
+      "options": {
+        "url": "https://slack.com/api/chat.update",
+        "content_type": "application_json",
+        "method": "post",
+        "payload": {
+          "channel": "<<parse_slack_payload.output.channel.id>>",
+          "ts": "<<parse_slack_payload.output.message.ts>>",
+          "text": "Wazuh alert claimed",
+          "blocks": [
+            {
+              "type": "header",
+              "text": {
+                "type": "plain_text",
+                "text": "✅ Wazuh Alert — CLAIMED",
+                "emoji": true
+              }
+            },
+            {
+              "type": "section",
+              "text": {
+                "type": "mrkdwn",
+                "text": "🎯 Claimed by *<@<<parse_slack_payload.output.user.id>>>*\n\nInvestigation assigned. The analyst has been deep-linked to the Wazuh alert page."
+              }
+            },
+            {
+              "type": "context",
+              "elements": [
+                {
+                  "type": "mrkdwn",
+                  "text": "MITRE ATT&CK: `T1021.001` · `T1078` — Ownership recorded in Slack audit log"
+                }
+              ]
+            },
+            {
+              "type": "actions",
+              "elements": [
+                {
+                  "type": "button",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "🔎 View in Wazuh",
+                    "emoji": true
+                  },
+                  "url": "https://216.128.185.28/app/data-explorer/discover#?_a=(discover:(columns:!(_source),isDirty:!f,sort:!()),metadata:(indexPattern:'wazuh-alerts-*',view:discover))&_g=(filters:!(),refreshInterval:(pause:!t,value:0),time:(from:now-1d,to:now))&_q=(filters:!(),query:(language:kuery,query:'rule.id:%22100100%22'))"
+                }
+              ]
+            }
+          ]
+        },
+        "headers": {
+          "Authorization": "Bearer <<CREDENTIAL.slack>>",
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": false,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null,
+      "schedule": null
+    }
+  ],
+  "diagram_notes": [],
+  "links": [
+    {
+      "source": 0,
+      "receiver": 1
+    },
+    {
+      "source": 0,
+      "receiver": 2
+    },
+    {
+      "source": 1,
+      "receiver": 3
+    },
+    {
+      "source": 2,
+      "receiver": 3
+    },
+    {
+      "source": 3,
+      "receiver": 4
+    },
+    {
+      "source": 4,
+      "receiver": 5
+    },
+    {
+      "source": 6,
+      "receiver": 7
+    },
+    {
+      "source": 7,
+      "receiver": 8
+    }
+  ],
+  "diagram_layout": "{\"121063fb9a09427ec55ab2d05d28d208\":[255,270],\"3598e96401b7ab9fbfeb8a5e9a6fe369\":[-120,345],\"39ca6ed523a2af2ebf774dbc0baac67b\":[-120,255],\"7a498d0e8f0ebd93aaf71ecd2ec56f52\":[255,180],\"a9d5dc20a7127aece4da9b72ac668405\":[255,105],\"c6c56a19963b6a56b9f27145d4f16e3e\":[-30,180],\"dba96d663019142f7d6799cfc2500977\":[-210,180],\"dd5653679102ebd180162f6455208008\":[-120,435],\"f96f104ea3803eb602eb5b3dc3de8fe7\":[-135,105]}",
+  "story_library_metadata": {},
+  "monitor_failures": false,
+  "synchronous_webhooks_enabled": false,
+  "integrations": [],
+  "sections": [],
+  "parent_only_send_to_story": false,
+  "send_to_story_timeout_enabled": false,
+  "send_to_story_timeout_duration_seconds": null,
+  "keep_events_for": 604800,
+  "reporting_status": true,
+  "send_to_story_enabled": false,
+  "entry_agent_guid": null,
+  "exit_agent_guids": [],
+  "api_entry_action_guids": [],
+  "api_exit_action_guids": [],
+  "send_to_story_access": null,
+  "send_to_story_access_source": 0,
+  "send_to_story_skill_use_requires_confirmation": true,
+  "pages": [],
+  "tags": [],
+  "time_saved_unit": "minutes",
+  "time_saved_value": 0,
+  "origin_story_identifier": "cloud:2f8da1140e77e7333f8313435a925123:810ccdbf57b67a5b7ede98fe6df88f8c",
+  "recipients": [],
+  "integration_product": null,
+  "integration_vendor": null,
+  "llm_product_instructions": "",
+  "start_reference": null,
+  "app_endpoints": [],
+  "send_to_stories": [],
+  "exported_at": "2026-08-18T04:26:20Z"
+}
