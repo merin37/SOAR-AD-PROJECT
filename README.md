@@ -14,9 +14,8 @@ This lab demonstrates the full alert lifecycle: **detect → enrich → triage �
 - [SOAR Enrichment Pipeline](#soar-enrichment-pipeline)
 - [Analyst Workflow (Slack Integration)](#analyst-workflow-slack-integration)
 - [Staged HIGH-Verdict Demo](#staged-high-verdict-demo)
-- [Key Engineering Decisions & Gotchas](#key-engineering-decisions--gotchas)
+- [Key Engineering Decisions](#key-engineering-decisions)
 - [Skills Demonstrated](#skills-demonstrated)
-- [Work in Progress](#work-in-progress)
 - [Lessons Learned](#lessons-learned)
 
 ---
@@ -167,7 +166,7 @@ To demonstrate the pipeline's behavior on genuinely malicious traffic (rather th
 
 ---
 
-## Key Engineering Decisions & Gotchas
+## Key Engineering Decisions
 
 - **Splunk → Wazuh migration:** Splunk Free's licensing model made persistent search unworkable at lab scale; Wazuh 4.9 provided equivalent detection capability without licensing friction.
 - **Shuffle → Tines migration:** Shuffle was evaluated first but rejected due to reliability issues in workflow execution; Tines Community Edition proved more stable for this use case.
@@ -181,7 +180,7 @@ To demonstrate the pipeline's behavior on genuinely malicious traffic (rather th
 
 ## Skills Demonstrated
 
-This project is designed to speak directly to Tier 1 SOC Analyst competencies:
+This project is designed to speak directly to SOC Analyst competencies:
 
 - **Detection engineering:** Writing, testing, and iterating custom SIEM correlation rules against real (not simulated-log) authentication events; mapping detections to MITRE ATT&CK (T1021.001 — Remote Services: RDP, T1078 — Valid Accounts)
 - **Alert triage & enrichment:** Building multi-source threat intelligence enrichment (AbuseIPDB, VirusTotal) with resilient, fail-open design
@@ -190,14 +189,6 @@ This project is designed to speak directly to Tier 1 SOC Analyst competencies:
 - **Infrastructure & access control:** Role-separated firewall design across a multi-VM AD + SIEM environment
 - **Troubleshooting under ambiguity:** Diagnosing environment-specific Windows logon type behavior rather than relying on textbook assumptions
 - **AI-assisted triage:** Constraining an LLM-based verdict engine with explicit, auditable scoring rules rather than open-ended judgment
-
----
-
-## Work in Progress
-
-- [ ] Complete and test the Event ID 4625 stateful brute-force detection service (Python + LDAP)
-- [ ] Integrate brute-force detection output into the existing Tines enrichment pipeline
-- [ ] Expand portfolio documentation with additional end-to-end walkthrough recordings
 
 ---
 
