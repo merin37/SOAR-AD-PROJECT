@@ -4,6 +4,8 @@ An end-to-end Security Operations Center lab simulating a realistic enterprise d
 
 This lab demonstrates the full alert lifecycle: **detect → enrich → triage → respond**.
 
+![complete_workflow](screenshots/soc_lab_workflow_v2_(1).jpg)
+
 ## Table of Contents
 
 - [Environment Setup](#environment-setup)
